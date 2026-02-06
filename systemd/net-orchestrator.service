@@ -1,0 +1,10 @@
+[Unit]
+Description=Net Orchestrator
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/net-orchestrator/orchestrator.py --daemon
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
