@@ -35,7 +35,7 @@ apt update
 apt install -y iproute2 iptables nftables curl git python3 python3-pip
 
 echo "📦 Installing python dependencies..."
-pip3 install --break-system-packages rich psutil requests
+pip3 install --no-warn-script-location rich psutil requests
 
 # ---------------------------
 # Step 3: Clone repo
