@@ -2,14 +2,19 @@
   "role": "IRAN",
 
   "network": {
-    "private_ip": "10.10.10.1",
+    "private_ip": "10.10.20.1",
     "interface": null
   },
 
+  "tunnel": {
+    "type": "ipip",
+    "name": "ipip0",
+    "local_public": "IRAN_PUBLIC_IP",
+    "remote_public": "FOREIGN_PUBLIC_IP"
+  },
+
   "foreign_servers": [
-    "167.235.20.121",
-    "138.68.92.10",
-    "159.223.43.8"
+    "10.10.20.2"
   ],
 
   "active_foreign": null,
