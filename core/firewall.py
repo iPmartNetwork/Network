@@ -1,17 +1,44 @@
 import subprocess
 
-def setup_firewall(allowed_ips):
-    subprocess.run("iptables -F", shell=True)
+SSH_PORT = 22
 
-    subprocess.run(
-        "iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT",
-        shell=True
+def run(cmd):
+    subprocess.run(cmd, shell=True, stderr=subprocess.DEVNULL)
+
+def setup_firewall(allowed_ips):
+    """
+    Safe firewall setup:
+    - Keep SSH access
+    - Allow established connections
+    - Allow traffic only from allowed foreign IPs
+    - Drop everything else
+    """
+
+    # Create custom chain to avoid flushing whole firewall
+    run("iptables -N NET_ORCH 2>/dev/null")
+    run("iptables -F NET_ORCH")
+
+    # Allow established connections
+    run(
+        "iptables -A NET_ORCH "
+        "-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
     )
 
-    for ip in allowed_ips:
-        subprocess.run(
-            f"iptables -A INPUT -s {ip} -j ACCEPT",
-            shell=True
-        )
+    # Allow SSH access (VERY IMPORTANT)
+    run(
+        f"iptables -A NET_ORCH "
+        f"-p tcp --dport {SSH_PORT} -j ACCEPT"
+    )
 
-    subprocess.run("iptables -A INPUT -j DROP", shell=True)
+    # Allow traffic from known foreign servers
+    for ip in allowed_ips:
+        run(f"iptables -A NET_ORCH -s {ip} -j ACCEPT")
+
+    # Drop everything else
+    run("iptables -A NET_ORCH -j DROP")
+
+    # Ensure INPUT chain sends traffic to NET_ORCH
+    run(
+        "iptables -C INPUT -j NET_ORCH 2>/dev/null || "
+        "iptables -A INPUT -j NET_ORCH"
+    )
