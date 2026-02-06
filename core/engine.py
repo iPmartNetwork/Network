@@ -7,6 +7,7 @@ from core.routing import add_route
 from core.firewall import setup_firewall
 from core.health import monitor
 from core.geo import lookup
+from core.tunnel import setup_ipip
 
 CONFIG_PATH = "config/profiles.json"
 
@@ -14,7 +15,7 @@ CONFIG_PATH = "config/profiles.json"
 BLACKLIST_ASN = {
     "AS13335",  # Cloudflare
     "AS16509",  # Amazon
-    "AS15169",  # Google
+    "AS15169"   # Google
 }
 
 
@@ -84,7 +85,10 @@ class Engine:
         candidates = []
 
         for ip in servers:
-            # Basic health check
+            if not ip:
+                continue
+
+            # Health check (ping)
             if not monitor([ip]):
                 print(f"[HEALTH] {ip} is DOWN")
                 continue
@@ -104,7 +108,7 @@ class Engine:
     def apply_profile(self, profile: dict):
         role = profile.get("role")
         if role != "IRAN":
-            print("[INFO] Role is not IRAN, skipping orchestration")
+            # FOREIGN node does not orchestrate routes
             return
 
         foreign_servers = profile.get("foreign_servers", [])
@@ -119,6 +123,8 @@ class Engine:
             profile.get("firewall_enabled", False)
         )
 
+        tunnel = profile.get("tunnel")
+
         if not foreign_servers:
             print("[ERROR] No foreign_servers defined")
             return
@@ -127,24 +133,49 @@ class Engine:
             print("[ERROR] private_ip is not defined")
             return
 
+        # -------------------------------------------------
+        # Tunnel setup (IPIP)
+        # -------------------------------------------------
+        if tunnel and tunnel.get("type") == "ipip":
+            try:
+                setup_ipip(
+                    name=tunnel.get("name", "ipip0"),
+                    local=tunnel["local_public"],
+                    remote=tunnel["remote_public"],
+                    private_ip=private_ip
+                )
+            except Exception as e:
+                print("[ERROR] Failed to setup IPIP tunnel:", e)
+                return
+
+        # -------------------------------------------------
+        # Interface detection
+        # -------------------------------------------------
         interface = detect_interface()
 
+        # -------------------------------------------------
+        # Select best foreign server (via tunnel)
+        # -------------------------------------------------
         best_server = self.select_best_server(foreign_servers)
         if not best_server:
             print("[WARN] No healthy FOREIGN server available")
             return
 
-        # Prevent unnecessary re-apply
+        # Avoid unnecessary re-apply
         if best_server == self.last_active_foreign:
             return
 
         print(f"[DECISION] Selected FOREIGN server: {best_server}")
         print(f"[NET] Using interface: {interface}")
 
-        # Apply routing
+        # -------------------------------------------------
+        # Routing
+        # -------------------------------------------------
         add_route(best_server, private_ip, interface)
 
-        # Apply firewall rules
+        # -------------------------------------------------
+        # Firewall
+        # -------------------------------------------------
         if firewall_enabled:
             setup_firewall(foreign_servers)
 
@@ -160,7 +191,7 @@ class Engine:
         self.apply_profile(profile)
 
     def run_daemon(self, interval: int = 30):
-        print("[INFO] Net-Orchestrator started (Geo-Aware Engine)")
+        print("[INFO] Net-Orchestrator started (Final Engine)")
         while True:
             try:
                 self.run_once()
