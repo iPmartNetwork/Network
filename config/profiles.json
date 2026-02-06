@@ -1,0 +1,37 @@
+{
+  "role": "IRAN",
+
+  "network": {
+    "private_ip": "10.10.10.1",
+    "interface": null
+  },
+
+  "foreign_servers": [
+    "167.235.20.121",
+    "138.68.92.10",
+    "159.223.43.8"
+  ],
+
+  "active_foreign": null,
+
+  "routing": {
+    "mode": "full",
+    "table": 100
+  },
+
+  "firewall": {
+    "enabled": true
+  },
+
+  "health": {
+    "status": "unknown",
+    "last_latency_ms": null,
+    "last_packet_loss": null,
+    "last_check": null
+  },
+
+  "decision": {
+    "score": null,
+    "reason": null
+  }
+}
